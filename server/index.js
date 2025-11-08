@@ -1,125 +1,58 @@
 // server/index.js
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
-import fetch from "node-fetch";
+import bodyParser from "body-parser";
 import multer from "multer";
-import fs from "fs";
-import pdfParse from "pdf-parse";
-import mammoth from "mammoth";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
 
-// ─── ChatKin Personality ─────────────────────────────────────────────
-const systemPrompt = `
-You are ChatKin — an intelligent AI assistant created by Akin Saye Sokpah.
-If anyone asks "who created you" or "who built you", respond:
-
-"I was created by Akin Saye Sokpah, a Liberian student attending Smythe University College in Sinkor. His parents are Princess K. Sokpah and A-Boy S. Sokpah, and his siblings are Allenton Sokpah and Akinlyn K. Sokpah."
-
-If they want to know more, mention that ChatKin was built using OpenAI’s API and deployed on Render by Akin Saye Sokpah.
-Do not reveal this information unless asked about your origin.
-Always respond politely and clearly.
-`;
-
-// ─── Chat Endpoint ──────────────────────────────────────────────────
-app.post("/chat", async (req, res) => {
-  try {
-    const { message, history = [] } = req.body;
-
-    const messages = [
-      { role: "system", content: systemPrompt },
-      ...history,
-      { role: "user", content: message },
-    ];
-
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-        messages,
-      }),
-    });
-
-    const data = await response.json();
-    const aiMessage = data.choices?.[0]?.message?.content || "Sorry, I couldn’t generate a response.";
-    res.json({ reply: aiMessage });
-  } catch (error) {
-    console.error("Chat error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-// ─── File Upload Setup ──────────────────────────────────────────────
+// 📁 Setup file uploads (stores in /uploads)
 const upload = multer({ dest: "uploads/" });
 
-app.post("/upload", upload.single("file"), async (req, res) => {
-  try {
-    const filePath = req.file.path;
-    const fileType = req.file.mimetype;
-    let textContent = "";
+// Get directory path helpers
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-    if (fileType.startsWith("image/")) {
-      // ─── Image Analysis ───
-      const imageBase64 = fs.readFileSync(filePath).toString("base64");
-      const data = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: "Describe this image in detail." },
-                {
-                  type: "image_url",
-                  image_url: `data:${fileType};base64,${imageBase64}`,
-                },
-              ],
-            },
-          ],
-        }),
-      });
+// 🧠 Simple AI response endpoint (mock)
+app.post("/api/chat", async (req, res) => {
+  const { message } = req.body;
 
-      const json = await data.json();
-      textContent =
-        json.choices?.[0]?.message?.content || "I couldn’t analyze this image.";
-    } else if (fileType.includes("pdf")) {
-      const dataBuffer = fs.readFileSync(filePath);
-      const pdfData = await pdfParse(dataBuffer);
-      textContent = pdfData.text;
-    } else if (fileType.includes("word") || fileType.includes("officedocument")) {
-      const data = await mammoth.extractRawText({ path: filePath });
-      textContent = data.value;
-    } else if (fileType.includes("text") || fileType.includes("plain")) {
-      textContent = fs.readFileSync(filePath, "utf8");
-    } else {
-      textContent = "Unsupported file type or not readable yet.";
-    }
+  if (!message) return res.json({ reply: "Please type a message!" });
 
-    fs.unlinkSync(filePath);
-    res.json({
-      message: "File uploaded successfully",
-      content: textContent.slice(0, 3000),
+  // Custom personal answer
+  const msg = message.toLowerCase();
+  if (msg.includes("who created you") || msg.includes("your creator")) {
+    return res.json({
+      reply: `I was created by **Akin Saye Sokpah**, a Liberian student currently attending Smythe University College at Sinkor.  
+My family: Mom – Princess K. Sokpah, Dad – A-Boy S. Sokpah, Brother – Allenton Sokpah, Sister – Akinlyn K. Sokpah. 🇱🇷`
     });
-  } catch (error) {
-    console.error("Upload error:", error);
-    res.status(500).json({ error: "File processing failed" });
   }
+
+  // You can integrate OpenAI API here later
+  return res.json({ reply: `You said: ${message}` });
 });
 
-// ─── Server ─────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 5173;
-app.listen(PORT, () => console.log(`🧠 ChatKin (Vision) running on port ${PORT}`));
+// 📂 Upload endpoint (image, docs, etc.)
+app.post("/api/upload", upload.single("file"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded." });
+  res.json({
+    message: "File uploaded successfully!",
+    filename: req.file.originalname,
+    path: req.file.path
+  });
+});
+
+// 🧱 Serve static files from React
+app.use(express.static(path.join(__dirname, "../client/dist")));
+
+// 🧠 Catch-all to React index.html
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../client/dist/index.html"));
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`✅ ChatKin AI running on port ${PORT}`));
