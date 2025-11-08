@@ -8,12 +8,13 @@ function App() {
   const [input, setInput] = useState("");
   const [file, setFile] = useState(null);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
 
   const sendMessage = async () => {
     if (!input && !file) return;
 
     const userMessage = { role: "user", content: input || file.name };
-    setMessages([...messages, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
 
     if (file) {
@@ -33,11 +34,13 @@ function App() {
     setMessages((prev) => [...prev, { role: "bot", content: data.reply }]);
   };
 
-  if (!loggedIn) return <Login onLogin={() => setLoggedIn(true)} />;
+  if (!loggedIn)
+    return <Login onLogin={(userData) => { setUser(userData); setLoggedIn(true); }} />;
 
   return (
     <div className="chat-container">
       <h2>💬 ChatKin AI</h2>
+      <p className="user-info">Welcome, {user?.name || "Guest"}!</p>
 
       <div className="chat-box">
         {messages.map((msg, i) => (
@@ -48,7 +51,7 @@ function App() {
       <div className="chat-input">
         <input
           type="text"
-          placeholder="Ask something..."
+          placeholder="Ask me something..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
         />
