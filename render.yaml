@@ -1,11 +1,8 @@
 services:
   - type: web
-    name: chatkin-ai
+    name: ChatKin-AI
     env: node
     buildCommand: npm install --prefix server && npm install --prefix client && npm run build --prefix client
     startCommand: node server/index.js
-    envVars:
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: OPENAI_MODEL
-        value: gpt-4o-mini
+    plan: free
+    region: oregon
