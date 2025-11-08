@@ -5,4 +5,6 @@ services:
     buildCommand: npm install --prefix server && npm install --prefix client && npm run build --prefix client
     startCommand: node server/index.js
     plan: free
-    region: oregon
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
