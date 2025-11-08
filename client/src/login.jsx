@@ -1,18 +1,11 @@
 import React from "react";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
-const Login = () => {
-  const handleGoogleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    const auth = getAuth();
-    await signInWithPopup(auth, provider);
-  };
-
+const Login = ({ onLogin }) => {
   return (
-    <div className="login-screen">
-      <h1>Welcome to ChatKin AI</h1>
-      <p>Sign in to start chatting.</p>
-      <button onClick={handleGoogleLogin}>Sign in with Google</button>
+    <div className="login-container">
+      <h1>Welcome to ChatKin AI 🤖</h1>
+      <p>Your Liberian-built AI assistant by Akin Saye Sokpah 🇱🇷</p>
+      <button onClick={onLogin}>Continue</button>
     </div>
   );
 };
