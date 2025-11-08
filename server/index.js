@@ -66,7 +66,37 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     const fileType = req.file.mimetype;
     let textContent = "";
 
-    if (fileType.includes("pdf")) {
+    if (fileType.startsWith("image/")) {
+      // ─── Image Analysis ───
+      const imageBase64 = fs.readFileSync(filePath).toString("base64");
+      const data = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Describe this image in detail." },
+                {
+                  type: "image_url",
+                  image_url: `data:${fileType};base64,${imageBase64}`,
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const json = await data.json();
+      textContent =
+        json.choices?.[0]?.message?.content || "I couldn’t analyze this image.";
+    } else if (fileType.includes("pdf")) {
       const dataBuffer = fs.readFileSync(filePath);
       const pdfData = await pdfParse(dataBuffer);
       textContent = pdfData.text;
@@ -92,4 +122,4 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 
 // ─── Server ─────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5173;
-app.listen(PORT, () => console.log(`🧠 ChatKin server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🧠 ChatKin (Vision) running on port ${PORT}`));
