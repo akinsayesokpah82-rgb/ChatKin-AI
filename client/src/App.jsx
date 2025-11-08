@@ -1,68 +1,74 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from "react";
 
-export default function App() {
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState([
-    { role: 'system', content: 'You are ChatKin — a friendly web assistant.' }
-  ]);
-  const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
+function App() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
 
-  useEffect(() => scrollToBottom(), [messages]);
-  function scrollToBottom(){ messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }
+  const API_URL = "https://chatkin-ai.onrender.com"; // change to your Render backend URL
 
-  async function sendMessage(e){
-    e?.preventDefault();
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    const userMsg = { role: 'user', content: trimmed };
-    const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
-    setInput('');
-    setLoading(true);
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nextMessages })
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Server error');
-      }
-      const data = await res.json();
-      const reply = data.reply || { role: 'assistant', content: '...' };
-      setMessages(prev => [...prev, reply]);
-    } catch (err) {
-      console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong.' }]);
-    } finally {
-      setLoading(false);
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    const userMsg = { role: "user", content: input };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+
+    const res = await fetch(`${API_URL}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: input, history: messages }),
+    });
+
+    const data = await res.json();
+    setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(`${API_URL}/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (data.content) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: `📄 Uploaded: ${file.name}` },
+        { role: "assistant", content: data.content },
+      ]);
     }
-  }
+  };
 
   return (
-    <div style={{fontFamily: 'Inter, system-ui, Arial', padding:20, display:'flex', justifyContent:'center'}}>
-      <div style={{width:800, borderRadius:16, boxShadow:'0 6px 24px rgba(0,0,0,0.08)', overflow:'hidden', background:'#fff'}}>
-        <header style={{padding:16, borderBottom:'1px solid #eee', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-          <h1 style={{margin:0}}>ChatKin</h1>
-          <div style={{color:'#666'}}>Web • OpenAI API</div>
-        </header>
-        <main style={{padding:16, height:400, overflow:'auto', background:'#fafafa'}}>
-          {messages.filter(m=>m.role!=='system').map((m,i)=>(
-            <div key={i} style={{display:'flex', justifyContent: m.role==='user' ? 'flex-end':'flex-start', marginBottom:12}}>
-              <div style={{maxWidth:'80%', padding:12, borderRadius:12, background: m.role==='user' ? '#0369a1' : '#f3f4f6', color: m.role==='user' ? '#fff':'#111'}}>
-                <div style={{whiteSpace:'pre-wrap'}}>{m.content}</div>
-              </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </main>
-        <form onSubmit={sendMessage} style={{display:'flex', gap:8, padding:12, borderTop:'1px solid #eee'}}>
-          <input value={input} onChange={e=>setInput(e.target.value)} placeholder={loading ? 'Waiting for reply...' : 'Type your message...'} style={{flex:1, padding:10, borderRadius:10, border:'1px solid #ddd'}} disabled={loading}/>
-          <button type="submit" style={{padding:'10px 16px', borderRadius:10, background:'#0369a1', color:'#fff', border:'none'}} disabled={loading}>{loading ? 'Sending...' : 'Send'}</button>
-        </form>
+    <div className="app">
+      <h1 className="title">🤖 ChatKin AI</h1>
+      <div className="chat-box">
+        {messages.map((m, i) => (
+          <div key={i} className={m.role}>
+            <b>{m.role === "user" ? "You" : "ChatKin"}:</b> {m.content}
+          </div>
+        ))}
+      </div>
+
+      <div className="controls">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type message..."
+        />
+        <button onClick={sendMessage}>Send</button>
+
+        <label htmlFor="fileInput" className="upload-btn">📎 Upload</label>
+        <input id="fileInput" type="file" onChange={handleFileUpload} hidden />
       </div>
     </div>
   );
 }
+
+export default App;
