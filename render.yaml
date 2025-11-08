@@ -2,7 +2,9 @@ services:
   - type: web
     name: chatkin-ai
     env: node
-    buildCommand: npm install --prefix server && npm install --prefix client && npm run build --prefix client
-    startCommand: node server/index.js
     plan: free
-    region: oregon
+    buildCommand: npm install --prefix server && npm install --prefix client && npm run build --prefix client
+    startCommand: node server/server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20
